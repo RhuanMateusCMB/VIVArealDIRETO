@@ -103,7 +103,7 @@ class GmailSender:
 
    def enviar_email(self, total_registros):
        message = MIMEText(f"Coleta de lotes do site VivaReal foi concluída com sucesso. Total de dados coletados: {total_registros}")
-       message['to'] = 'rhuanmateuscmb@gmail.com'
+       message['to'] = 'cabf05@gmail.com'
        message['subject'] = 'Coleta VivaReal Concluída'
        message['from'] = st.secrets["GOOGLE_CREDENTIALS"]["client_email"]
        
