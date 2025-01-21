@@ -1,0 +1,12 @@
+streamlit~=1.41.1
+selenium~=4.10.0
+pandas~=2.1.4
+supabase~=1.2.0
+python-dotenv~=1.0.0
+plotly
+folium
+streamlit-folium
+google-auth-oauthlib
+google-auth-httplib2
+google-api-python-client
+secure-smtplib
