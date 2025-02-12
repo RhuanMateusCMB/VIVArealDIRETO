@@ -248,7 +248,7 @@ class ScraperVivaReal:
             
             try:
                 preco_elemento = wait.until(
-                    EC.presence_of_element_located((By.CSS_SELECTOR, 'p.l-text.l-u-color-neutral-28.l-text--variant-heading-small.l-text--weight-bold'))
+                    EC.presence_of_element_located((By.CSS_SELECTOR, '[data-cy="rp-cardProperty-price-txt"] p:first-child'))
                 )
                 preco_texto = preco_elemento.text
             except Exception as e:
