@@ -40,7 +40,6 @@ st.set_page_config(
 # Estilo CSS personalizado
 st.markdown("""
     <style>
-    /* Estilo original do botão */
     .stButton>button {
         width: 100%;
         height: 3em;
@@ -56,7 +55,6 @@ st.markdown("""
         background-color: #FF3333 !important;
         box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2) !important;
     }
-    /* Estilo para botão desabilitado */
     .stButton>button:disabled {
         background-color: #4f4f4f !important;
         cursor: not-allowed !important;
@@ -67,10 +65,10 @@ st.markdown("""
 
 @dataclass
 class ConfiguracaoScraper:
-    tempo_espera: int = 8
+    tempo_espera: int = 15  # Aumentado de 8 para 15 segundos
     pausa_rolagem: int = 2
     espera_carregamento: int = 4
-    url_base: str = "https://www.vivareal.com.br/venda/ceara/eusebio/lote-terreno_residencial/#onde=,Cear%C3%A1,Eus%C3%A9bio,,,,,city,BR%3ECeara%3ENULL%3EEusebio,-14.791623,-39.283324,&itl_id=1000183&itl_name=vivareal_-_botao-cta_buscar_to_vivareal_resultado-pesquisa"
+    url_base: str = "https://www.vivareal.com.br/venda/ceara/eusebio/lote-terreno_residencial/"
     tentativas_max: int = 3
 
 class SupabaseManager:
@@ -109,32 +107,32 @@ class SupabaseManager:
             return []
 
 class GmailSender:
-   def __init__(self):
-       self.creds = Credentials.from_authorized_user_info(
-           info={
-               "client_id": st.secrets["GOOGLE_CREDENTIALS"]["client_id"],
-               "client_secret": st.secrets["GOOGLE_CREDENTIALS"]["client_secret"],
-               "refresh_token": st.secrets["GOOGLE_CREDENTIALS"]["refresh_token"]
-           },
-           scopes=['https://www.googleapis.com/auth/gmail.send']
-       )
-       self.service = build('gmail', 'v1', credentials=self.creds)
+    def __init__(self):
+        self.creds = Credentials.from_authorized_user_info(
+            info={
+                "client_id": st.secrets["GOOGLE_CREDENTIALS"]["client_id"],
+                "client_secret": st.secrets["GOOGLE_CREDENTIALS"]["client_secret"],
+                "refresh_token": st.secrets["GOOGLE_CREDENTIALS"]["refresh_token"]
+            },
+            scopes=['https://www.googleapis.com/auth/gmail.send']
+        )
+        self.service = build('gmail', 'v1', credentials=self.creds)
 
-   def enviar_email(self, total_registros):
-       message = MIMEText(f"Coleta de lotes do site VivaReal foi concluída com sucesso. Total de dados coletados: {total_registros}")
-       message['to'] = 'cabf05@gmail.com'
-       message['subject'] = 'Coleta VivaReal Concluída'
-       message['from'] = st.secrets["GOOGLE_CREDENTIALS"]["client_email"]
-       
-       raw = base64.urlsafe_b64encode(message.as_bytes()).decode()
-       
-       try:
-           self.service.users().messages().send(
-               userId='me', body={'raw': raw}).execute()
-           return True
-       except Exception as e:
-           st.error(f"Erro ao enviar email: {str(e)}")
-           return False
+    def enviar_email(self, total_registros):
+        message = MIMEText(f"Coleta de lotes do site VivaReal foi concluída com sucesso. Total de dados coletados: {total_registros}")
+        message['to'] = 'cabf05@gmail.com'
+        message['subject'] = 'Coleta VivaReal Concluída'
+        message['from'] = st.secrets["GOOGLE_CREDENTIALS"]["client_email"]
+        
+        raw = base64.urlsafe_b64encode(message.as_bytes()).decode()
+        
+        try:
+            self.service.users().messages().send(
+                userId='me', body={'raw': raw}).execute()
+            return True
+        except Exception as e:
+            st.error(f"Erro ao enviar email: {str(e)}")
+            return False
 
 class ScraperVivaReal:
     def __init__(self, config: ConfiguracaoScraper):
@@ -206,7 +204,7 @@ class ScraperVivaReal:
 
             try:
                 localizacao_elemento = WebDriverWait(navegador, self.config.tempo_espera).until(
-                    EC.presence_of_element_located((By.CSS_SELECTOR, '.search-input-location'))
+                    EC.presence_of_element_located((By.CSS_SELECTOR, 'div.listings-wrapper'))
                 )
                 texto_localizacao = localizacao_elemento.text.strip()
                 if texto_localizacao:
@@ -365,7 +363,7 @@ class ScraperVivaReal:
             
             try:
                 lista_resultados = espera.until(
-                    EC.presence_of_element_located((By.CSS_SELECTOR, 'div.results-list'))
+                    EC.presence_of_element_located((By.CSS_SELECTOR, 'div.listings-wrapper'))
                 )
                 self.logger.info("Lista de resultados encontrada")
             except Exception as e:
@@ -393,7 +391,7 @@ class ScraperVivaReal:
                     for tentativa in range(3):
                         try:
                             imoveis = espera.until(EC.presence_of_all_elements_located(
-                                (By.CSS_SELECTOR, 'div.results-list article')
+                                (By.CSS_SELECTOR, 'div[data-cy="rp-property-cd"]')
                             ))
                             if imoveis:
                                 break
