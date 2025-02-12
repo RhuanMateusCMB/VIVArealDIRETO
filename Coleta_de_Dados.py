@@ -355,82 +355,110 @@ class ScraperVivaReal:
             espera = WebDriverWait(navegador, self.config.tempo_espera)
             navegador.get(self.config.url_base)
             self.logger.info("Navegador acessou a URL com sucesso")
+            self.logger.info(f"URL atual: {navegador.current_url}")
             
+            # Aguarda carregamento inicial
             for _ in range(30):
                 if self._verificar_pagina_carregada(navegador):
+                    self.logger.info("Página carregada completamente")
                     break
                 time.sleep(1)
             
+            # Primeira rolagem para carregar conteúdo
+            self._rolar_pagina(navegador)
+            self.logger.info("Primeira rolagem concluída")
+            
             try:
+                self.logger.info("Procurando lista de resultados...")
                 lista_resultados = espera.until(
-                    EC.presence_of_element_located((By.CSS_SELECTOR, 'div.listings-wrapper'))
+                    EC.presence_of_element_located((By.CSS_SELECTOR, '[data-cy="results-list"]'))
                 )
                 self.logger.info("Lista de resultados encontrada")
+                self.logger.info(f"HTML da lista: {lista_resultados.get_attribute('outerHTML')[:200]}...")
             except Exception as e:
-                self.logger.error("Não foi possível encontrar a lista de resultados")
+                self.logger.error(f"Não foi possível encontrar a lista de resultados. Erro: {str(e)}")
+                self.logger.error(f"HTML da página: {navegador.page_source[:500]}...")
                 return None
-
+    
             localidade, estado = self._capturar_localizacao(navegador)
             if not localidade or not estado:
                 st.error("Não foi possível capturar a localização")
                 return None
-
+    
             for pagina in range(1, num_paginas + 1):
                 try:
                     status.text(f"⏳ Processando página {pagina}/{num_paginas}")
                     progresso.progress(pagina / num_paginas)
                     self.logger.info(f"Processando página {pagina}")
                     
-                    pausa = random.uniform(1, 3)
-                    time.sleep(pausa)
+                    # Pausa aleatória reduzida
+                    time.sleep(random.uniform(0.5, 1.5))
                     
-                    time.sleep(self.config.espera_carregamento)
                     self._rolar_pagina(navegador)
-
+                    self.logger.info(f"Rolagem da página {pagina} concluída")
+    
                     imoveis = None
                     for tentativa in range(3):
                         try:
+                            self.logger.info(f"Tentativa {tentativa + 1} de encontrar imóveis...")
                             imoveis = espera.until(EC.presence_of_all_elements_located(
-                                (By.CSS_SELECTOR, 'div[data-cy="rp-property-cd"]')
+                                (By.CSS_SELECTOR, 'div.ListingCard_result-card__ie9wP')
                             ))
+                            self.logger.info(f"Encontrados {len(imoveis)} imóveis")
                             if imoveis:
                                 break
-                            time.sleep(5)
-                        except Exception:
-                            if tentativa == 2:
-                                raise
-                            time.sleep(5)
+                            time.sleep(3)  # Reduzido de 5 para 3 segundos
+                        except Exception as e:
+                            self.logger.error(f"Erro na tentativa {tentativa + 1}: {str(e)}")
+                            if tentativa == 2:  # Última tentativa
+                                self.logger.error("HTML da página: " + navegador.page_source[:500])
+                            time.sleep(3)
                             continue
-
+    
                     if not imoveis:
                         self.logger.warning(f"Sem imóveis na página {pagina}")
                         break
-
+    
+                    self.logger.info(f"Iniciando processamento de {len(imoveis)} imóveis")
                     for imovel in imoveis:
                         id_global += 1
                         if dados := self._extrair_dados_imovel(imovel, id_global, pagina):
                             dados['estado'] = estado
                             dados['localidade'] = localidade
                             todos_dados.append(dados)
-
+                            self.logger.info(f"Imóvel {id_global} processado com sucesso")
+    
                     if pagina < num_paginas:
+                        self.logger.info("Procurando botão próxima página...")
                         botao_proxima = self._encontrar_botao_proxima(espera)
                         if not botao_proxima:
+                            self.logger.warning("Botão próxima página não encontrado")
                             break
+                        
+                        self.logger.info("Clicando no botão próxima página...")
                         navegador.execute_script("arguments[0].click();", botao_proxima)
-                        time.sleep(2)
-
+                        time.sleep(1)  # Reduzido de 2 para 1 segundo
+                        self.logger.info("Aguardando carregamento da próxima página...")
+                        
+                        # Aguarda o carregamento da nova página
+                        for _ in range(10):
+                            if self._verificar_pagina_carregada(navegador):
+                                self.logger.info("Nova página carregada")
+                                break
+                            time.sleep(0.5)
+    
                 except Exception as e:
                     self.logger.error(f"Erro na página {pagina}: {str(e)}")
                     continue
-
+    
+            self.logger.info(f"Coleta finalizada. Total de {len(todos_dados)} imóveis coletados")
             return pd.DataFrame(todos_dados) if todos_dados else None
-
+    
         except Exception as e:
             self.logger.error(f"Erro crítico: {str(e)}")
             st.error(f"Erro durante a coleta: {str(e)}")
             return None
-
+    
         finally:
             if navegador:
                 try:
