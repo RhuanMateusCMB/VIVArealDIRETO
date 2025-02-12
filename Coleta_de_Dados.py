@@ -257,7 +257,7 @@ class ScraperVivaReal:
 
             try:
                 area_elemento = wait.until(
-                    EC.presence_of_element_located((By.CSS_SELECTOR, 'span[class*="detail-area"]'))
+                    EC.presence_of_element_located((By.CSS_SELECTOR, '[data-cy="rp-cardProperty-propertyArea-txt"]'))
                 )
                 area_texto = area_elemento.text
             except Exception as e:
