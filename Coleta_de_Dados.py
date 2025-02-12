@@ -65,9 +65,9 @@ st.markdown("""
 
 @dataclass
 class ConfiguracaoScraper:
-    tempo_espera: int = 15  # Aumentado de 8 para 15 segundos
-    pausa_rolagem: int = 2
-    espera_carregamento: int = 4
+    tempo_espera: int = 10  # Reduzido de 15 para 10
+    pausa_rolagem: int = 1  # Reduzido de 2 para 1
+    espera_carregamento: int = 2  # Reduzido de 4 para 2
     url_base: str = "https://www.vivareal.com.br/venda/ceara/eusebio/lote-terreno_residencial/"
     tentativas_max: int = 3
 
@@ -407,12 +407,10 @@ class ScraperVivaReal:
                             self.logger.info(f"Encontrados {len(imoveis)} imóveis")
                             if imoveis:
                                 break
-                            time.sleep(3)  # Reduzido de 5 para 3 segundos
+                            time.sleep(5)
                         except Exception as e:
                             self.logger.error(f"Erro na tentativa {tentativa + 1}: {str(e)}")
-                            if tentativa == 2:  # Última tentativa
-                                self.logger.error("HTML da página: " + navegador.page_source[:500])
-                            time.sleep(3)
+                            time.sleep(5)
                             continue
     
                     if not imoveis:
