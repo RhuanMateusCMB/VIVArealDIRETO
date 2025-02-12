@@ -158,6 +158,9 @@ class ScraperVivaReal:
     def _configurar_navegador(self) -> webdriver.Chrome:
         try:
             opcoes_chrome = Options()
+            opcoes_chrome.add_argument('--disable-blink-features=AutomationControlled')
+            opcoes_chrome.add_experimental_option('excludeSwitches', ['enable-automation'])
+            opcoes_chrome.add_experimental_option('useAutomationExtension', False)
             opcoes_chrome.add_argument('--headless=new')
             opcoes_chrome.add_argument('--no-sandbox')
             opcoes_chrome.add_argument('--disable-dev-shm-usage')
@@ -371,7 +374,7 @@ class ScraperVivaReal:
             try:
                 self.logger.info("Procurando lista de resultados...")
                 lista_resultados = espera.until(
-                    EC.presence_of_element_located((By.CSS_SELECTOR, '[data-cy="results-list"]'))
+                    EC.presence_of_element_located((By.CSS_SELECTOR, 'div.listings-wrapper, div.ListingCard_result-card__ie9wP'))
                 )
                 self.logger.info("Lista de resultados encontrada")
                 self.logger.info(f"HTML da lista: {lista_resultados.get_attribute('outerHTML')[:200]}...")
