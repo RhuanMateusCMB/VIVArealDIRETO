@@ -276,7 +276,6 @@ def main():
                 
                 try:
                     driver.get(url)
-                    time.sleep(4)
                     
                     dados = navegar_paginas(driver, 12)
                     
