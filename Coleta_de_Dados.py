@@ -136,22 +136,25 @@ class SupabaseManager:
 def configurar_driver():
     options = webdriver.ChromeOptions()
     
-    # Otimizações de performance
-    options.add_argument('--headless=new')
-    options.add_argument('--no-sandbox')
-    options.add_argument('--disable-dev-shm-usage')
-    options.add_argument('--disable-gpu')
-    options.add_argument('--disable-images')
-    options.add_argument('--blink-settings=imagesEnabled=false')
-    options.page_load_strategy = 'eager'
-    
-    # Configurações anti-detecção
     options.add_argument('--disable-blink-features=AutomationControlled')
     options.add_experimental_option('excludeSwitches', ['enable-automation'])
     options.add_experimental_option('useAutomationExtension', False)
     options.add_argument(f'user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36')
     
-    options.binary_location = '/usr/bin/chromium'
+    options.add_argument('--headless')
+    options.add_argument('--no-sandbox')
+    options.add_argument('--disable-dev-shm-usage')
+    options.add_argument('--window-size=1920,1080')
+    options.add_argument('--enable-javascript')
+    options.add_argument('--disable-gpu')
+    options.add_argument('--accept-language=pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7')
+    options.add_argument('--accept=text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8')
+    options.add_argument('--disable-notifications')
+    options.add_argument('--disable-popup-blocking')
+    options.add_argument('--disable-extensions')
+    options.add_argument('--disable-features=VizDisplayCompositor')
+    options.add_argument('--disable-blink-features=AutomationControlled')
+    options.binary_location = '/usr/bin/chromium'  # Importante para o Streamlit Cloud
     
     return webdriver.Chrome(options=options)
 
