@@ -168,6 +168,9 @@ def configurar_driver():
     options.add_argument('--disable-notifications')
     options.add_argument('--disable-popup-blocking')
     options.add_argument('--disable-extensions')
+    options.add_argument('--disable-features=VizDisplayCompositor')
+    options.add_argument('--disable-blink-features=AutomationControlled')
+    options.binary_location = '/usr/bin/chromium'  # Importante para o Streamlit Cloud
     
     return webdriver.Chrome(options=options)
 
