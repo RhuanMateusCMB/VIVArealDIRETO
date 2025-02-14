@@ -13,14 +13,12 @@ from datetime import datetime
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-import gc
 
 # Configuração da página Streamlit
 st.set_page_config(
     page_title="CMB - Capital",
     page_icon="🏗️",
-    layout="wide",
-    initial_sidebar_state="collapsed"
+    layout="wide"
 )
 
 # Configurações do SMTP
@@ -56,8 +54,8 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-@st.cache_data(ttl=3600)
 def enviar_email(total_registros):
+    # Preparar o corpo do email
     assunto = "Coleta de Lotes VivaReal Concluída"
     corpo = f"""
     Boa tarde,
@@ -74,60 +72,78 @@ def enviar_email(total_registros):
     Equipe de Coleta de Dados
     """
 
+    # Configurar o email
     msg = MIMEMultipart()
     msg['From'] = EMAIL_FROM
-    msg['To'] = 'rhuanmateuscmb@gmail.com'
+    msg['To'] = 'rhuanmateuscmb@gmail.com'  # Ou lista de destinatários
     msg['Subject'] = assunto
+
     msg.attach(MIMEText(corpo, 'plain'))
 
     try:
+        # Enviar email
         with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
             server.starttls()
             server.login(SMTP_USER, SMTP_PASS)
             server.send_message(msg)
+        print("Email enviado com sucesso!")
         return True
     except Exception as e:
-        st.error(f"Erro ao enviar email: {e}")
+        print(f"Erro ao enviar email: {e}")
         return False
-
-@st.cache_resource
-def get_supabase_client():
-    supabase_url = st.secrets['supabase_urlt']
-    supabase_key = st.secrets['supabase_keyt']
-    
-    if not supabase_url or not supabase_key:
-        raise ValueError("Supabase URL e Key são necessários")
-    
-    return create_client(supabase_url, supabase_key)
 
 class SupabaseManager:
     def __init__(self):
-        self.client = get_supabase_client()
+        """
+        Inicializa o cliente Supabase com segredos do Streamlit
+        """
+        self.supabase_url = st.secrets['supabase_urlt']
+        self.supabase_key = st.secrets['supabase_keyt']
+        
+        if not self.supabase_url or not self.supabase_key:
+            raise ValueError("Supabase URL e Key são necessários")
+        
+        self.client = create_client(self.supabase_url, self.supabase_key)
 
-    @st.cache_data(ttl=300)
     def inserir_lotes(self, df: pd.DataFrame):
+        """
+        Insere dados de lotes no Supabase em lote para maior eficiência
+        """
+        # Verificar último ID no banco
+        result = self.client.table('lotes').select('id').order('id', desc=True).limit(1).execute()
+        ultimo_id = result.data[0]['id'] if result.data else 0
+        
+        # Adicionar data de coleta
+        df['data_coleta'] = datetime.now().strftime('%Y-%m-%d')
+        
+        # Adicionar IDs sequenciais a partir do último ID
+        df['id'] = range(ultimo_id + 1, ultimo_id + len(df) + 1)
+        
+        # Preparar registros
+        lotes = df.to_dict('records')
+        
         try:
-            result = self.client.table('lotes').select('id').order('id', desc=True).limit(1).execute()
-            ultimo_id = result.data[0]['id'] if result.data else 0
-            
-            df['data_coleta'] = datetime.now().strftime('%Y-%m-%d')
-            df['id'] = range(ultimo_id + 1, ultimo_id + len(df) + 1)
-            
-            lotes = df.to_dict('records')
+            # Inserção em lote
             response = self.client.table('lotes').insert(lotes).execute()
             return len(lotes)
         except Exception as e:
             st.error(f"Erro ao inserir lotes: {e}")
             return 0
-
-    @st.cache_data(ttl=300)
+        
     def buscar_historico(self):
+        """
+        Busca o histórico de coletas agrupado por data
+        """
         try:
-            result = self.client.table('lotes')\
-                .select('data_coleta, count(*)::integer as total')\
-                .group_by('data_coleta')\
-                .order('data_coleta', desc=True)\
-                .execute()
+            # Query para agrupar registros por data_coleta e contar
+            query = """
+            select data_coleta, count(*) as total
+            from lotes
+            group by data_coleta
+            order by data_coleta desc
+            """
+            
+            result = self.client.rpc('get_coleta_historico').execute()
             return result.data
         except Exception as e:
             st.error(f"Erro ao buscar histórico: {e}")
@@ -159,57 +175,49 @@ def configurar_driver():
     return webdriver.Chrome(options=options)
 
 def scroll_primeira_vez(driver):
-    wait = WebDriverWait(driver, 20)  # Aumentando para 20 segundos
+    wait = WebDriverWait(driver, 30)
     try:
         next_button = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, '[data-testid="next-page"]')))
-        driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
-        time.sleep(5)
+        driver.execute_script("arguments[0].scrollIntoView();", next_button)
+        time.sleep(7)
     except Exception as e:
-        st.error(f"Erro ao rolar: {e}")
+        print(f"Erro ao rolar até o botão: {e}")
 
 def limpar_numero(texto):
     return int(''.join(filter(str.isdigit, texto)))
 
 def extrair_dados(driver):
-    wait = WebDriverWait(driver, 8)
+    wait = WebDriverWait(driver, 30)
     try:
         articles = wait.until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, '[data-cy="rp-property-cd"]')))
         
         dados = []
         for card in articles:
             try:
-                # Armazenar seletores para evitar múltiplas queries
-                elementos = {
-                    'localidade': card.find_element(By.CSS_SELECTOR, '[data-cy="rp-cardProperty-location-txt"]'),
-                    'endereco': card.find_element(By.CSS_SELECTOR, '[data-cy="rp-cardProperty-street-txt"]'),
-                    'area': card.find_element(By.CSS_SELECTOR, '[data-cy="rp-cardProperty-propertyArea-txt"]'),
-                    'preco': card.find_element(By.CSS_SELECTOR, '[data-cy="rp-cardProperty-price-txt"] .l-text--variant-heading-small'),
-                    'link': card.find_element(By.CSS_SELECTOR, 'a')
-                }
+                localidade = card.find_element(By.CSS_SELECTOR, '[data-cy="rp-cardProperty-location-txt"]').text
+                endereco = card.find_element(By.CSS_SELECTOR, '[data-cy="rp-cardProperty-street-txt"]').text
+                area_texto = card.find_element(By.CSS_SELECTOR, '[data-cy="rp-cardProperty-propertyArea-txt"]').text.replace('²', '')
+                preco_texto = card.find_element(By.CSS_SELECTOR, '[data-cy="rp-cardProperty-price-txt"] .l-text--variant-heading-small').text
+                link = card.find_element(By.CSS_SELECTOR, 'a').get_attribute('href')
+                
+                area = limpar_numero(area_texto)
+                preco = limpar_numero(preco_texto)
                 
                 dados.append({
-                    'localidade': elementos['localidade'].text,
-                    'endereco': elementos['endereco'].text,
-                    'area': limpar_numero(elementos['area'].text.replace('²', '')),
-                    'preco': limpar_numero(elementos['preco'].text),
-                    'link': elementos['link'].get_attribute('href')
+                    'localidade': localidade,
+                    'endereco': endereco,
+                    'area': area,
+                    'preco': preco,
+                    'link': link
                 })
             except Exception as e:
+                print(f"Erro ao extrair dados do card: {e}")
                 continue
                 
         return dados
     except TimeoutException:
         st.error("Timeout ao carregar cards")
         return []
-
-@st.cache_data(ttl=300)
-def processar_dados(dados):
-    if not dados:
-        return None
-    
-    df = pd.DataFrame(dados)
-    df['data_coleta'] = pd.Timestamp.now().date()
-    return df
 
 def navegar_paginas(driver, num_paginas=1):
     dados_totais = []
@@ -220,31 +228,22 @@ def navegar_paginas(driver, num_paginas=1):
         status_text.text(f'Processando página {pagina} de {num_paginas}')
         progress_bar.progress(pagina/num_paginas)
         
-        try:
-            if pagina == 1:
-                scroll_primeira_vez(driver)
-            else:
-                next_button = driver.find_element(By.CSS_SELECTOR, '[data-testid="next-page"]')
-                driver.execute_script("arguments[0].click();", next_button)
-                time.sleep(2)
-                scroll_primeira_vez(driver)
-                
-            novos_dados = extrair_dados(driver)
-            if novos_dados:
-                dados_totais.extend(novos_dados)
-                
-        except Exception as e:
-            st.error(f"Erro na página {pagina}: {e}")
-            continue
+        if pagina == 1:
+            scroll_primeira_vez(driver)
+        else:
+            next_button = driver.find_element(By.CSS_SELECTOR, '[data-testid="next-page"]')
+            next_button.click()
+            time.sleep(4)
+            scroll_primeira_vez(driver)
+            
+        dados_totais.extend(extrair_dados(driver))
     
     progress_bar.progress(1.0)
     status_text.text('Captura finalizada!')
     return dados_totais
 
 def main():
-    if 'driver' not in st.session_state:
-        st.session_state.driver = None
-        
+    # Título e descrição
     st.title("🏗️ Coleta Informações Gerais Terrenos - VivaReal")
     
     with st.container():
@@ -254,6 +253,7 @@ def main():
             </p>
         """, unsafe_allow_html=True)
         
+        # Container de informações
         with st.expander("ℹ️ Informações sobre a coleta", expanded=True):
             st.markdown("""
             - Serão coletadas 12 páginas de resultados
@@ -262,30 +262,36 @@ def main():
             - Notificação por email após conclusão
             """)
     
+    # Container principal
     supabase_manager = SupabaseManager()
     
+    # Botões lado a lado
     col1, col2 = st.columns(2)
     with col1:
         if st.button("🚀 Iniciar Coleta", use_container_width=True):
             with st.spinner("Iniciando coleta de dados..."):
                 url = "https://www.vivareal.com.br/venda/ceara/eusebio/lote-terreno_residencial/"
-                st.session_state.driver = configurar_driver()
+                driver = configurar_driver()
                 
                 try:
-                    st.session_state.driver.get(url)
-                    time.sleep(2)
+                    driver.get(url)
+                    time.sleep(4)
                     
-                    dados = navegar_paginas(st.session_state.driver, 12)
+                    dados = navegar_paginas(driver, 12)
+                    
                     if dados:
-                        df = processar_dados(dados)
+                        df = pd.DataFrame(dados)
                         st.success(f"✅ Captura finalizada! {len(dados)} lotes encontrados.")
                         
+                        # Inserir no Supabase
                         lotes_inseridos = supabase_manager.inserir_lotes(df)
                         st.success(f"✅ {lotes_inseridos} lotes inseridos no Supabase")
                         
+                        # Enviar email
                         if enviar_email(len(df)):
                             st.success("✅ Email de notificação enviado")
                         
+                        # Mostrar dados e botão de download
                         st.dataframe(df)
                         csv = df.to_csv(index=False).encode('utf-8')
                         st.download_button(
@@ -303,10 +309,7 @@ def main():
                 except Exception as e:
                     st.error(f"❌ Erro durante a execução: {str(e)}")
                 finally:
-                    if st.session_state.driver:
-                        st.session_state.driver.quit()
-                        st.session_state.driver = None
-                    gc.collect()
+                    driver.quit()
     
     with col2:
         if st.button("📊 Ver Histórico", type="secondary", use_container_width=True):
