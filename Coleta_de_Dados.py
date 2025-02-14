@@ -177,8 +177,10 @@ def configurar_driver():
 def scroll_primeira_vez(driver):
     wait = WebDriverWait(driver, 20)
     try:
-        next_button = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, '[data-testid="next-page"]')))
-        driver.execute_script("arguments[0].scrollIntoView();", next_button)
+        for _ in range(5):  # Repete 5 vezes
+            next_button = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, '[data-testid="next-page"]')))
+            driver.execute_script("arguments[0].scrollIntoView();", next_button)
+            time.sleep(3)  # Espera 3 segundos após cada rolagem
     except Exception as e:
         print(f"Erro ao rolar até o botão: {e}")
 
