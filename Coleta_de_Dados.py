@@ -159,13 +159,28 @@ def configurar_driver():
     return webdriver.Chrome(options=options)
 
 def scroll_primeira_vez(driver):
-    wait = WebDriverWait(driver, 8)  # Reduzir para 8 segundos
+    wait = WebDriverWait(driver, 8)
     try:
-        next_button = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, '[data-testid="next-page"]')))
-        driver.execute_script("arguments[0].scrollIntoView();", next_button)
-        time.sleep(3)  # Reduzir para 3 segundos
+        # Tentar diferentes seletores para o botão
+        selectors = [
+            '[data-testid="next-page"]',
+            'button[aria-label="Próxima página"]',
+            '.js-change-page'
+        ]
+        
+        for selector in selectors:
+            try:
+                next_button = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, selector)))
+                driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+                time.sleep(2)
+                return
+            except:
+                continue
+                
+        raise Exception("Botão de próxima página não encontrado")
+        
     except Exception as e:
-        st.error(f"Erro ao rolar até o botão: {e}")
+        st.error(f"Erro ao rolar: {e}")
 
 def limpar_numero(texto):
     return int(''.join(filter(str.isdigit, texto)))
