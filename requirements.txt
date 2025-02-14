@@ -1,22 +1,5 @@
-# Framework web
 streamlit==1.30.0
-
-# Manipulação de dados
-pandas==2.1.0
-
-# Web Scraping
+pandas==2.0.3  # Versão mais estável com Python 3.12
 selenium==4.16.0
-
-# Cliente Supabase
 supabase==2.0.0
-
-# Variáveis de ambiente
 python-dotenv==1.0.0
-
-# Email
-smtplib3==0.8.0
-email-validator==2.1.0.post1
-
-# Utilitários
-datetime==5.4
-typing==3.7.4.3
