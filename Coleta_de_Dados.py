@@ -175,7 +175,7 @@ def configurar_driver():
     return webdriver.Chrome(options=options)
 
 def scroll_primeira_vez(driver):
-    wait = WebDriverWait(driver, 20)
+    wait = WebDriverWait(driver, 10)
     try:
         next_button = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, '[data-testid="next-page"]')))
         driver.execute_script("arguments[0].scrollIntoView();", next_button)
@@ -187,7 +187,7 @@ def limpar_numero(texto):
     return int(''.join(filter(str.isdigit, texto)))
 
 def extrair_dados(driver):
-    wait = WebDriverWait(driver, 20)
+    wait = WebDriverWait(driver, 10)
     try:
         articles = wait.until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, '[data-cy="rp-property-cd"]')))
         
