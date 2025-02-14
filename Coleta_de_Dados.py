@@ -159,26 +159,11 @@ def configurar_driver():
     return webdriver.Chrome(options=options)
 
 def scroll_primeira_vez(driver):
-    wait = WebDriverWait(driver, 8)
+    wait = WebDriverWait(driver, 20)  # Aumentando para 20 segundos
     try:
-        # Tentar diferentes seletores para o botão
-        selectors = [
-            '[data-testid="next-page"]',
-            'button[aria-label="Próxima página"]',
-            '.js-change-page'
-        ]
-        
-        for selector in selectors:
-            try:
-                next_button = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, selector)))
-                driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
-                time.sleep(2)
-                return
-            except:
-                continue
-                
-        raise Exception("Botão de próxima página não encontrado")
-        
+        next_button = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, '[data-testid="next-page"]')))
+        driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+        time.sleep(5)
     except Exception as e:
         st.error(f"Erro ao rolar: {e}")
 
