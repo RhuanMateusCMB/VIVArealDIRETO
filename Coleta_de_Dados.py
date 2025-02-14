@@ -187,7 +187,7 @@ def limpar_numero(texto):
     return int(''.join(filter(str.isdigit, texto)))
 
 def extrair_dados(driver):
-    wait = WebDriverWait(driver, 10)
+    wait = WebDriverWait(driver, 20)
     try:
         articles = wait.until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, '[data-cy="rp-property-cd"]')))
         
