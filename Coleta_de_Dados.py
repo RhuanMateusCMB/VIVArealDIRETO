@@ -135,15 +135,8 @@ class SupabaseManager:
         Busca o histórico de coletas agrupado por data
         """
         try:
-            # Query para agrupar registros por data_coleta e contar
-            query = """
-            select data_coleta, count(*) as total
-            from lotes
-            group by data_coleta
-            order by data_coleta desc
-            """
-            
-            result = self.client.rpc('get_coleta_historico').execute()
+            # Execute a função RPC passando um dicionário vazio como params
+            result = self.client.rpc('get_coleta_historico', {}).execute()
             return result.data
         except Exception as e:
             st.error(f"Erro ao buscar histórico: {e}")
