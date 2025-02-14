@@ -159,11 +159,11 @@ def configurar_driver():
     return webdriver.Chrome(options=options)
 
 def scroll_primeira_vez(driver):
-    wait = WebDriverWait(driver, 15)
+    wait = WebDriverWait(driver, 8)  # Reduzir para 8 segundos
     try:
         next_button = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, '[data-testid="next-page"]')))
         driver.execute_script("arguments[0].scrollIntoView();", next_button)
-        time.sleep(7)
+        time.sleep(3)  # Reduzir para 3 segundos
     except Exception as e:
         st.error(f"Erro ao rolar até o botão: {e}")
 
@@ -171,22 +171,28 @@ def limpar_numero(texto):
     return int(''.join(filter(str.isdigit, texto)))
 
 def extrair_dados(driver):
-    wait = WebDriverWait(driver, 15)
+    wait = WebDriverWait(driver, 8)
     try:
         articles = wait.until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, '[data-cy="rp-property-cd"]')))
         
         dados = []
         for card in articles:
-            if not card.is_displayed():
-                continue
-                
             try:
+                # Armazenar seletores para evitar múltiplas queries
+                elementos = {
+                    'localidade': card.find_element(By.CSS_SELECTOR, '[data-cy="rp-cardProperty-location-txt"]'),
+                    'endereco': card.find_element(By.CSS_SELECTOR, '[data-cy="rp-cardProperty-street-txt"]'),
+                    'area': card.find_element(By.CSS_SELECTOR, '[data-cy="rp-cardProperty-propertyArea-txt"]'),
+                    'preco': card.find_element(By.CSS_SELECTOR, '[data-cy="rp-cardProperty-price-txt"] .l-text--variant-heading-small'),
+                    'link': card.find_element(By.CSS_SELECTOR, 'a')
+                }
+                
                 dados.append({
-                    'localidade': card.find_element(By.CSS_SELECTOR, '[data-cy="rp-cardProperty-location-txt"]').text,
-                    'endereco': card.find_element(By.CSS_SELECTOR, '[data-cy="rp-cardProperty-street-txt"]').text,
-                    'area': limpar_numero(card.find_element(By.CSS_SELECTOR, '[data-cy="rp-cardProperty-propertyArea-txt"]').text.replace('²', '')),
-                    'preco': limpar_numero(card.find_element(By.CSS_SELECTOR, '[data-cy="rp-cardProperty-price-txt"] .l-text--variant-heading-small').text),
-                    'link': card.find_element(By.CSS_SELECTOR, 'a').get_attribute('href')
+                    'localidade': elementos['localidade'].text,
+                    'endereco': elementos['endereco'].text,
+                    'area': limpar_numero(elementos['area'].text.replace('²', '')),
+                    'preco': limpar_numero(elementos['preco'].text),
+                    'link': elementos['link'].get_attribute('href')
                 })
             except Exception as e:
                 continue
